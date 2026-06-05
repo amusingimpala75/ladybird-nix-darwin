@@ -30,7 +30,6 @@
               installPhase = builtins.replaceStrings [ "<<EOF" ] ["<<'EOF'"] old.installPhase;
               # Fix otool -L / otool -D paths on Darwin, applying it on NixOS does nothing
               nativeBuildInputs = old.nativeBuildInputs ++ (lib.optionals pkgs.stdenv.hostPlatform.isDarwin (with pkgs; [
-                apple-sdk
                 fixDarwinDylibNames
               ]));
               env.NIX_LDFLAGS = lib.optionalString pkgs.stdenv.hostPlatform.isDarwin "-headerpad_max_install_names";
