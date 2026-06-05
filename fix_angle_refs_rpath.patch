@@ -1,46 +1,39 @@
 diff --git a/BUILD.gn b/BUILD.gn
-index ced0f3c..fcc56d2 100644
+index ced0f3c..81d6208 100644
 --- a/BUILD.gn
 +++ b/BUILD.gn
-@@ -1401,6 +1401,13 @@ template("angle_libGLESv2") {
-       output_extension = angle_glesv2_extension
-     }
+@@ -1632,13 +1632,6 @@ if (angle_standalone || build_with_chromium ||
+       "${angle_jsoncpp_dir}:jsoncpp_config",
+     ]
  
+-    if (is_apple && !is_component_build) {
+-      ldflags = [
+-        "-install_name",
+-        "@rpath/${target_name}.dylib",
+-      ]
+-    }
+-
+     sources = [
+       "src/feature_support_util/feature_support_util.cpp",
+       "src/feature_support_util/feature_support_util.h",
+diff --git a/gni/angle.gni b/gni/angle.gni
+index 10cc5e8..9cd15c4 100644
+--- a/gni/angle.gni
++++ b/gni/angle.gni
+@@ -474,6 +474,16 @@ template("angle_shared_library") {
+       # Specifically, libGLESv1_CM includes headers from libGLESv2
+       check_includes = false
+     }
 +    if (is_mac && !is_component_build) {
++      install_name_lib = target_name
++      if (defined(invoker.output_name)) {
++        install_name_lib = invoker.output_name
++      }
 +      ldflags = [
 +        "-install_name",
-+        "@rpath/${output_name}.dylib"
++        "@rpath/${install_name_lib}.dylib",
 +      ]
 +    }
-+
-     configs += [
-       ":angle_gl_visibility_config",
-       ":debug_annotations_config",
-@@ -1472,6 +1479,13 @@ angle_shared_library("libGLESv1_CM") {
-   sources = libglesv1_cm_sources
-   output_name = "libGLESv1_CM${angle_libs_suffix}"
- 
-+  if (is_mac && !is_component_build) {
-+    ldflags = [
-+      "-install_name",
-+      "@rpath/${output_name}.dylib"
-+    ]
-+  }
-+
-   configs += [
-     ":angle_gl_visibility_config",
-     ":debug_annotations_config",
-@@ -1535,6 +1549,13 @@ template("libEGL_shared_template") {
-       output_extension = angle_egl_extension
-     }
- 
-+    if (is_mac && !is_component_build) {
-+      ldflags = [
-+        "-install_name",
-+        "@rpath/${output_name}.dylib"
-+      ]
-+    }
-+
-     defines = invoker.defines + [ "LIBEGL_IMPLEMENTATION" ]
-     if (is_win) {
-       defines += [ "EGLAPI=" ]
+   }
+   if (is_ios) {
+     group(target_name) {

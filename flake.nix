@@ -16,6 +16,7 @@
           packages = {
             default = self'.packages.patched-ladybird;
 
+            # This probably should just stay local to the package
             patched-libtommath = pkgs.libtommath.overrideAttrs (old: {
               patches = [
                 ./force_mp_set_double.patch
@@ -23,12 +24,15 @@
             });
 
             patched-angle = pkgs.angle.overrideAttrs (old: {
-              installPhase = builtins.replaceStrings [ "EOF" ] [ "'EOF'" ] old.installPhase;
-              env.NIX_LDFLAGS = "-headerpad_max_install_names";
-              buildInputs = with pkgs; [ apple-sdk_15 fixDarwinDylibNames ];
+              # Fix pkg-config path
+              installPhase = builtins.replaceStrings [ "<<EOF" ] ["<<'EOF'"] old.installPhase;
+              # Fix otool -L / otool -D paths on Darwin, applying it on NixOS does nothing
               patches = [
                 ./fix_angle_refs_rpath.patch
               ];
+              postUnpack = ''
+                patch -d src/third_party/vulkan-tools/src -p1 < ${./fix_vulkan-tools_refs_rpath.patch}
+              '';
             });
 
             patched-ladybird =
