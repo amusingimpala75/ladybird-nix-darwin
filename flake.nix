@@ -23,15 +23,21 @@
               ];
             });
 
+            # [TODO] one last integrated build before opening a PR for this
             patched-angle = pkgs.angle.overrideAttrs (old: {
               # Fix pkg-config path
               installPhase = builtins.replaceStrings [ "<<EOF" ] ["<<'EOF'"] old.installPhase;
               # Fix otool -L / otool -D paths on Darwin, applying it on NixOS does nothing
-              patches = [
-                ./fix_angle_refs_rpath.patch
-              ];
-              postUnpack = ''
-                patch -d src/third_party/vulkan-tools/src -p1 < ${./fix_vulkan-tools_refs_rpath.patch}
+              nativeBuildInputs = old.nativeBuildInputs ++ (lib.optionals pkgs.stdenv.hostPlatform.isDarwin (with pkgs; [
+                apple-sdk
+                fixDarwinDylibNames
+              ]));
+              env.NIX_LDFLAGS = lib.optionalString pkgs.stdenv.hostPlatform.isDarwin "-headerpad_max_install_names";
+              postFixup = ''
+                install_name_tool \
+                    -change ./libGLESv2.dylib \
+                    $out/lib/libGLESv2.dylib \
+                    $out/lib/libGLESv1_CM.dylib
               '';
             });
 
@@ -98,16 +104,6 @@
                   patches = [
                     ./fix_egl_define.patch
                   ];
-
-                  # Make sure to include the angle rpaths
-                  # propagatedBuildInputs = [
-                  #   self'.packages.patched-angle
-                  # ];
-
-                  postFixup = ''
-                    install_name_tool -add_rpath ${self'.packages.patched-angle}/lib \
-                        $out/Applications/Ladybird.app/Contents/lib/liblagom-web.0.1.0.dylib
-                  '';
 
                   # Mark darwin as no longer broken
                   meta.broken = false;
