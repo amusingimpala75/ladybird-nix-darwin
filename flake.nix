@@ -18,12 +18,13 @@
 
             # This probably should just stay local to the package
             patched-libtommath = pkgs.libtommath.overrideAttrs (old: {
+              # Patch libtommath to always build mp_set_double.
+              # There is probably a better way to do this patch
               patches = [
                 ./force_mp_set_double.patch
               ];
             });
 
-            # [TODO] one last integrated build before opening a PR for this
             patched-angle = pkgs.angle.overrideAttrs (old: {
               # Fix pkg-config path
               installPhase = builtins.replaceStrings [ "<<EOF" ] ["<<'EOF'"] old.installPhase;
@@ -33,7 +34,7 @@
                 fixDarwinDylibNames
               ]));
               env.NIX_LDFLAGS = lib.optionalString pkgs.stdenv.hostPlatform.isDarwin "-headerpad_max_install_names";
-              postFixup = ''
+              postFixup = lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
                 install_name_tool \
                     -change ./libGLESv2.dylib \
                     $out/lib/libGLESv2.dylib \
@@ -82,11 +83,12 @@
                   # Patch libtommath to include mp_set_double
                   nativeBuildInputs = replace [ pkgs.libtommath ] [ self'.packages.patched-libtommath ] old.nativeBuildInputs;
 
-                  # Patch angle to fix the pkg-config path
+                  # Patch angle to fix the pkg-config path and dylib refs
                   buildInputs = (replace [ pkgs.angle ] [ self'.packages.patched-angle ] old.buildInputs) ++ (with pkgs; [
                     mimalloc      # Add mimalloc
+                  ] ++ (lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
                     apple-sdk_15  # Add apple-sdk
-                  ]);
+                  ]));
 
                   # Fetch the hsts preload data cache
                   # Side note: wish I didn't have to fetch the 1.2GB chromium
@@ -96,8 +98,10 @@
                     cp ${transport_security_static_static_json} build/Caches/HSTSPreload/transport_security_state_static.json
                   '';
 
-                  env.NIX_LDFLAGS = (lib.removePrefix "-lGL " old.env.NIX_LDFLAGS) # Remove -lGl
-                                    + " -framework CoreText"; # Add -framework CoreText to make lagom-gfx compile
+                  env.NIX_LDFLAGS = if pkgs.stdenv.isDarwin
+                                    then (lib.removePrefix "-lGL " old.env.NIX_LDFLAGS) # Remove -lGl
+                                         + " -framework CoreText" # Add -framework CoreText to make lagom-gfx compile
+                                    else old.env.NIX_LDFLAGS;
 
                   # Hopefull fix the angle issues. This /might/ remove the need
                   # for all of the other angle patches
