@@ -16,13 +16,13 @@
           packages = {
             default = self'.packages.patched-ladybird;
 
-            # This probably should just stay local to the package
+            # I'm currently waiting to hear if this (or the previous version
+            # should be PR'd into nixpkgs separately or be contained in the
+            # package definition, like how skia is currently patched
             patched-libtommath = pkgs.libtommath.overrideAttrs (old: {
-              # Patch libtommath to always build mp_set_double.
-              # [TODO] There is probably a better way to do this patch
-              patches = [
-                ./force_mp_set_double.patch
-              ];
+              env.NIX_CFLAGS_COMPILE = ''
+                -D__STDC_IEC_559__=1
+              '';
             });
 
             # [TODO] Can be removed once nixpkgs#528602 is merged
