@@ -16,29 +16,10 @@
           packages = {
             default = self'.packages.patched-ladybird;
 
-            # I'm currently waiting to hear if this (or the previous version
-            # should be PR'd into nixpkgs separately or be contained in the
-            # package definition, like how skia is currently patched
+            # Waiting on #533430 to be merged
             patched-libtommath = pkgs.libtommath.overrideAttrs (old: {
               env.NIX_CFLAGS_COMPILE = ''
                 -D__STDC_IEC_559__=1
-              '';
-            });
-
-            # [TODO] Can be removed once nixpkgs#528602 is merged
-            patched-angle = pkgs.angle.overrideAttrs (old: {
-              # Fix pkg-config path
-              installPhase = builtins.replaceStrings [ "<<EOF" ] ["<<'EOF'"] old.installPhase;
-              # Fix otool -L / otool -D paths on Darwin, applying it on NixOS does nothing
-              nativeBuildInputs = old.nativeBuildInputs ++ (lib.optionals pkgs.stdenv.hostPlatform.isDarwin (with pkgs; [
-                fixDarwinDylibNames
-              ]));
-              env.NIX_LDFLAGS = lib.optionalString pkgs.stdenv.hostPlatform.isDarwin "-headerpad_max_install_names";
-              postFixup = lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
-                install_name_tool \
-                    -change ./libGLESv2.dylib \
-                    $out/lib/libGLESv2.dylib \
-                    $out/lib/libGLESv1_CM.dylib
               '';
             });
 
@@ -56,13 +37,10 @@
                   nativeBuildInputs =
                     replace [ pkgs.libtommath ] [ self'.packages.patched-libtommath ] old.nativeBuildInputs;
 
-                  buildInputs =
-                    # Patch angle to fix the pkg-config path and dylib refs
-                    (replace [ pkgs.angle ] [ self'.packages.patched-angle ] old.buildInputs)
-                    ++ (lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
-                      # Add apple-sdk_15 since that is the baseline for Ladybird now (NSCursor-something missing error)
-                      pkgs.apple-sdk_15
-                    ]);
+                  # Add apple-sdk_15 since that is the baseline for Ladybird now (NSCursor-something missing error)
+                  buildInputs = old.buildInputs ++ (lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
+                    pkgs.apple-sdk_15
+                  ]);
 
                   env.NIX_LDFLAGS =
                     if pkgs.stdenv.isDarwin
