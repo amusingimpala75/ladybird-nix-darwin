@@ -2,7 +2,7 @@
   description = "flake for ladybird fix on darwin";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:fredclausen/nixpkgs/ladybird/07-06";
     flake-parts.url = "github:hercules-ci/flake-parts";
   };
 
@@ -16,7 +16,8 @@
           packages = {
             default = self'.packages.patched-ladybird;
 
-            # Waiting on #533430 to be merged
+            # [TODO] Waiting on #533430 to be merged, remove when merged
+            # Patch libtommath to include mp_set_double
             patched-libtommath = pkgs.libtommath.overrideAttrs (old: {
               env.NIX_CFLAGS_COMPILE = ''
                 -D__STDC_IEC_559__=1
@@ -32,8 +33,10 @@
                     if maybeIndex != null then builtins.elemAt new maybeIndex else pkg
                 ) list;
               in
+                # Use the nixpkgs from the PR
+                # [TODO] revert to normal nixpkgs when PR is merged
                 pkgs.ladybird.overrideAttrs (old: {
-                  # Patch libtommath to include mp_set_double
+                  # [TODO] remove when patch is merged
                   nativeBuildInputs =
                     replace [ pkgs.libtommath ] [ self'.packages.patched-libtommath ] old.nativeBuildInputs;
 
@@ -45,13 +48,10 @@
                   env.NIX_LDFLAGS =
                     if pkgs.stdenv.isDarwin
                     # Remove -lGl
-                    then (lib.removePrefix "-lGL " old.env.NIX_LDFLAGS)
+                    then (lib.removePrefix "-lGL " old.env.NIX_LDFLAGS) +
+                         # Add CoreText for lib-lagom-gfx
+                         " -framework CoreText"
                     else old.env.NIX_LDFLAGS;
-
-                  # [TODO] waiting on upstream to accept this patch, issue ladybird#9917
-                  patches = [
-                    ./fix_egl_define.patch
-                  ];
 
                   # Mark darwin as no longer broken
                   meta.broken = false;
